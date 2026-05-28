@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gerador de Escala - Vigilantes</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--azul:#a9cbed;--borda:#111;--fundo:#f4f7fb}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--fundo);color:#111}
+.container{max-width:1100px;margin:auto;padding:18px}
+.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 4px 18px #0001}
+h1{text-align:center}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+label{font-weight:700;font-size:14px}
+input,select,button{width:100%;padding:11px;border:1px solid #ccc;border-radius:10px;font-size:15px}
+button{cursor:pointer;border:0;font-weight:700}
+.btn{background:#145da0;color:white}
+.btn2{background:#0f7b4f;color:white}
+.btn3{background:#444;color:white}
+.btn-danger{background:#b00020;color:white}
+.actions{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr .55fr;gap:8px;margin-top:8px}
+.preview-wrap{overflow:auto;background:white;padding:12px;border-radius:14px}
+.escala{width:100%;min-width:850px;border-collapse:collapse;background:#fff;border:4px solid var(--borda);font-size:24px}
+.escala th,.escala td{border:3px solid var(--borda);text-align:center;padding:8px}
+.titulo{background:var(--azul);font-size:31px;font-weight:900}
+.cabecalho{background:var(--azul);font-size:27px;font-weight:900}
+.nome{text-transform:uppercase}
+@media(max-width:760px){
+.grid,.actions{grid-template-columns:1fr}
+.row{grid-template-columns:1fr 1fr}
+.row input:first-child{grid-column:1/-1}
+.row button{grid-column:1/-1}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="card">
+<h1>Gerador de Escala - Vigilantes</h1>
+<div class="grid">
+<div><label>Data inicial</label><input type="date" id="dataInicio"></div>
+<div><label>Data final</label><input type="date" id="dataFim"></div>
+<div><label>Texto do período</label>
+<select id="textoPeriodo">
+<option>Segunda a Sexta</option>
+<option>Segunda a Sábado</option>
+<option>Escala Semanal</option>
+<option>Plantão</option>
+</select>
+</div>
+</div>
+</div>
+
+<div class="card">
+<h2>Funcionários e horários</h2>
+
+<div class="grid" style="margin-bottom:12px">
+  <div>
+    <label>Selecionar funcionário</label>
+    <select id="funcionarioSelecionado">
+      <option value="">Selecione...</option>
+      <option value="ROBSON">ROBSON</option>
+      <option value="WELLINGTON">WELLINGTON</option>
+      <option value="JOEL">JOEL</option>
+      <option value="JOÃO RICARDO">JOÃO RICARDO</option>
+      <option value="HELITON">HELITON</option>
+    </select>
+  </div>
+  <div>
+    <label>Entrada padrão</label>
+    <input type="time" id="entradaPadrao" value="08:00">
+  </div>
+  <div>
+    <label>Almoço padrão</label>
+    <input type="time" id="almocoPadrao" value="11:00">
+  </div>
+  <div>
+    <label>Saída padrão</label>
+    <input type="time" id="saidaPadrao" value="17:00">
+  </div>
+</div>
+
+<button class="btn2" style="margin-bottom:12px" onclick="adicionarFuncionarioSelecionado()">Adicionar funcionário selecionado</button>
+
+<div id="linhas"></div>
+
+<div class="actions" style="margin-top:12px">
+<button class="btn2" onclick="adicionarLinha()">+ Adicionar manual</button>
+<button class="btn" onclick="gerarEscala()">Gerar escala</button>
+<button class="btn-danger" onclick="limparTudo()">Limpar</button>
+</div>
+
+<div style="margin-top:15px">
+<label>Observações da escala</label>
+<textarea id="observacoes" placeholder="Digite observações, avisos, coberturas, férias, trocas de turno..." 
+style="width:100%;min-height:100px;padding:12px;border-radius:10px;border:1px solid #ccc;font-size:15px;resize:vertical"></textarea>
+</div>
+
+</div>
+
+<div class="card">
+<div class="actions">
+<button class="btn2" onclick="exportarJPG()">Exportar JPG</button>
+<button class="btn" onclick="exportarPDF()">Exportar PDF</button>
+
+<button class="btn3" onclick="copiarImagem()">Copiar imagem</button>
+<button class="btn3" onclick="gerarExemplo()">Exemplo</button>
+</div>
+</div>
+
+<div class="preview-wrap" style="padding-bottom:20px">
+<table class="escala" id="escala">
+<thead>
+<tr><th colspan="4" class="titulo" id="tituloEscala">ESCALA</th></tr>
+<tr>
+<th class="cabecalho" id="periodoCabecalho">Segunda a Sexta</th>
+<th class="cabecalho">Entrada</th>
+<th class="cabecalho">Almoço</th>
+<th class="cabecalho">Saída</th>
+</tr>
+</thead>
+<tbody id="corpoEscala"></tbody>
+</table>
+
+<div id="areaObservacoes" style="display:none;margin-top:12px;border:3px solid #111;padding:14px;border-radius:10px;background:#fff">
+  <div style="font-weight:900;font-size:18px;margin-bottom:8px">OBSERVAÇÕES</div>
+  <div id="textoObservacoes" style="font-size:16px;white-space:pre-line"></div>
+</div>
+
+</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+
+function fmtData(v){
+ if(!v) return '--/--/----';
+ const [a,m,d]=v.split('-');
+ return `${d}/${m}/${a}`;
+}
+
+function adicionarDias(data, dias){
+ const dt = new Date(data + 'T00:00:00');
+ dt.setDate(dt.getDate() + dias);
+ return dt.toISOString().split('T')[0];
+}
+
+function atualizarDataFinal(){
+ const inicio = $('dataInicio').value;
+ const periodo = $('textoPeriodo').value;
+
+ if(!inicio) return;
+
+ let dias = 4;
+
+ if(periodo === 'Segunda a Sexta'){
+   dias = 4;
+ } else if(periodo === 'Segunda a Sábado'){
+   dias = 5;
+ } else if(periodo === 'Escala Semanal'){
+   dias = 6;
+ } else if(periodo === 'Plantão'){
+   dias = 11;
+ }
+
+ $('dataFim').value = adicionarDias(inicio, dias);
+}
+
+function adicionarLinha(nome='',entrada='08:00',almoco='11:00',saida='17:00'){
+ const div=document.createElement('div');
+ div.className='row';
+ div.innerHTML=`
+ <input placeholder="Nome" value="${nome}" readonly>
+ <input type="time" value="${entrada}">
+ <input type="time" value="${almoco}">
+ <input type="time" value="${saida}">
+ <button class="btn-danger" onclick="this.parentElement.remove();gerarEscala()">Excluir</button>`;
+ $('linhas').appendChild(div);
+}
+
+function adicionarFuncionarioSelecionado(){
+ const nome = $('funcionarioSelecionado').value;
+ if(!nome){
+   alert('Selecione um funcionário.');
+   return;
+ }
+
+ const jaExiste = obterFuncionarios().some(f => f.nome.toUpperCase() === nome.toUpperCase());
+ if(jaExiste){
+   alert('Este funcionário já foi adicionado na escala.');
+   return;
+ }
+
+ adicionarLinha(nome, $('entradaPadrao').value, $('almocoPadrao').value, $('saidaPadrao').value);
+ gerarEscala();
+ $('funcionarioSelecionado').value = '';
+}
+
+function obterFuncionarios(){
+ return [...document.querySelectorAll('#linhas .row')].map(r=>{
+ const i=r.querySelectorAll('input');
+ return {
+ nome:i[0].value.trim(),
+ entrada:i[1].value,
+ almoco:i[2].value,
+ saida:i[3].value
+ }}).filter(x=>x.nome)
+}
+
+function gerarEscala(){
+ $('tituloEscala').textContent=`ESCALA - DIA ${fmtData($('dataInicio').value)} a ${fmtData($('dataFim').value)}`;
+ $('periodoCabecalho').textContent=$('textoPeriodo').value;
+ $('corpoEscala').innerHTML='';
+
+ obterFuncionarios().forEach(f=>{
+ const tr=document.createElement('tr');
+ tr.innerHTML=`<td class="nome">${f.nome}</td><td>${f.entrada}</td><td>${f.almoco}</td><td>${f.saida}</td>`;
+ $('corpoEscala').appendChild(tr);
+ });
+
+ const obs = $('observacoes').value.trim();
+
+ if(obs){
+   $('areaObservacoes').style.display='block';
+   $('textoObservacoes').textContent = obs;
+ } else {
+   $('areaObservacoes').style.display='none';
+ }
+}
+
+function salvarModelo(){
+ localStorage.setItem('escalaVigilantes',JSON.stringify({
+ inicio:$('dataInicio').value,
+ fim:$('dataFim').value,
+ periodo:$('textoPeriodo').value,
+ func:obterFuncionarios()
+ }));
+ alert('Modelo salvo!');
+}
+
+function carregarModelo(){
+ const d=JSON.parse(localStorage.getItem('escalaVigilantes')||'null');
+ if(!d){alert('Nenhum modelo salvo.');return}
+ $('dataInicio').value=d.inicio;
+ $('dataFim').value=d.fim;
+ $('textoPeriodo').value=d.periodo;
+ $('linhas').innerHTML='';
+ d.func.forEach(f=>adicionarLinha(f.nome,f.entrada,f.almoco,f.saida));
+ gerarEscala();
+}
+
+function limparTudo(){
+ $('linhas').innerHTML='';
+ $('corpoEscala').innerHTML='';
+}
+
+async function canvasEscala(){
+ gerarEscala();
+ return await html2canvas(document.querySelector('.preview-wrap'),{
+scale:3,
+backgroundColor:'#ffffff',
+useCORS:true
+});
+}
+
+async function exportarJPG(){
+ const c=await canvasEscala();
+ const a=document.createElement('a');
+ a.download='escala-vigilantes.jpg';
+ a.href=c.toDataURL('image/jpeg',0.98);
+ a.click();
+}
+
+async function exportarPDF(){
+ const c=await canvasEscala();
+ const img=c.toDataURL('image/jpeg',0.98);
+ const {jsPDF}=window.jspdf;
+ const pdf=new jsPDF('l','mm','a4');
+ const w=287;
+ const h=c.height*w/c.width;
+ pdf.addImage(img,'JPEG',5,8,w,h);
+ pdf.save('escala-vigilantes.pdf');
+}
+
+async function copiarImagem(){
+ const c=await canvasEscala();
+ c.toBlob(async b=>{
+ try{
+ await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);
+ alert('Imagem copiada!');
+ }catch(e){
+ alert('Seu navegador não permitiu copiar.');
+ }
+ });
+}
+
+function gerarExemplo(){
+ $('linhas').innerHTML='';
+ $('dataInicio').value='2026-05-18';
+ $('dataFim').value='2026-05-22';
+
+ [
+ ['ROBSON','07:00','10:00','16:00'],
+ ['WELLINGTON','07:10','10:00','16:10'],
+ ['JOEL','08:00','11:00','17:00'],
+ ['JOÃO RICARDO','09:00','12:00','18:00'],
+ ['HELITON','09:00','13:00','18:00']
+ ].forEach(x=>adicionarLinha(...x));
+
+ gerarEscala();
+}
+
+$('dataInicio').addEventListener('input',()=>{
+ atualizarDataFinal();
+ gerarEscala();
+});
+
+$('textoPeriodo').addEventListener('input',()=>{
+ atualizarDataFinal();
+ gerarEscala();
+});
+
+['dataFim','observacoes'].forEach(id=>$(id).addEventListener('input',gerarEscala));
+
+gerarExemplo();
+</script>
+</body>
+</html>
