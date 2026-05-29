@@ -124,7 +124,7 @@ style="width:100%;min-height:100px;padding:12px;border-radius:10px;border:1px so
 </div>
 </div>
 
-<div class="preview-wrap" style="padding-bottom:20px">
+<div class="preview-wrap" style="padding:12px 12px 35px 12px">
 <table class="escala" id="escala">
 <thead>
 <tr><th colspan="4" class="titulo" id="tituloEscala">ESCALA</th></tr>
@@ -272,11 +272,34 @@ function limparTudo(){
 
 async function canvasEscala(scalePersonalizado = 3){
  gerarEscala();
- return await html2canvas(document.querySelector('.preview-wrap'),{
-scale:scalePersonalizado,
-backgroundColor:'#ffffff',
-useCORS:true
-});
+
+ const alvo = document.querySelector('.preview-wrap');
+
+ const scrollOriginalX = alvo.scrollLeft;
+ const scrollOriginalY = alvo.scrollTop;
+
+ alvo.scrollLeft = 0;
+ alvo.scrollTop = 0;
+
+ const larguraCompleta = Math.max(alvo.scrollWidth, alvo.offsetWidth);
+ const alturaCompleta = Math.max(alvo.scrollHeight, alvo.offsetHeight);
+
+ const canvas = await html2canvas(alvo,{
+   scale:scalePersonalizado,
+   backgroundColor:'#ffffff',
+   useCORS:true,
+   width:larguraCompleta,
+   height:alturaCompleta,
+   windowWidth:larguraCompleta,
+   windowHeight:alturaCompleta,
+   scrollX:0,
+   scrollY:0
+ });
+
+ alvo.scrollLeft = scrollOriginalX;
+ alvo.scrollTop = scrollOriginalY;
+
+ return canvas;
 }
 
 async function exportarJPG(){
@@ -289,13 +312,37 @@ async function exportarJPG(){
 }
 
 async function exportarPDF(){
- const c=await canvasEscala(3);
- const img=c.toDataURL('image/jpeg',0.98);
- const {jsPDF}=window.jspdf;
- const pdf=new jsPDF('l','mm','a4');
- const w=287;
- const h=c.height*w/c.width;
- pdf.addImage(img,'JPEG',5,8,w,h);
+ const c = await canvasEscala(2);
+ const img = c.toDataURL('image/jpeg',0.92);
+ const {jsPDF} = window.jspdf;
+
+ const orientacao = c.width >= c.height ? 'l' : 'p';
+ const pdf = new jsPDF(orientacao,'mm','a4');
+
+ const pageWidth = pdf.internal.pageSize.getWidth();
+ const pageHeight = pdf.internal.pageSize.getHeight();
+
+ const margem = 8;
+ const areaWidth = pageWidth - (margem * 2);
+ const areaHeight = pageHeight - (margem * 2);
+
+ const proporcaoImagem = c.width / c.height;
+ const proporcaoPagina = areaWidth / areaHeight;
+
+ let imgWidth, imgHeight;
+
+ if(proporcaoImagem > proporcaoPagina){
+   imgWidth = areaWidth;
+   imgHeight = imgWidth / proporcaoImagem;
+ } else {
+   imgHeight = areaHeight;
+   imgWidth = imgHeight * proporcaoImagem;
+ }
+
+ const posX = (pageWidth - imgWidth) / 2;
+ const posY = (pageHeight - imgHeight) / 2;
+
+ pdf.addImage(img,'JPEG',posX,posY,imgWidth,imgHeight);
  pdf.save('escala-vigilantes.pdf');
 }
 
