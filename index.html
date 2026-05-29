@@ -103,6 +103,18 @@ style="width:100%;min-height:100px;padding:12px;border-radius:10px;border:1px so
 </div>
 
 <div class="card">
+<div class="grid" style="margin-bottom:12px">
+  <div>
+    <label>Tamanho da imagem JPG</label>
+    <select id="tamanhoJPG">
+      <option value="1">Pequena - WhatsApp</option>
+      <option value="2" selected>Média - Celular</option>
+      <option value="3">Grande - Impressão</option>
+      <option value="4">Alta qualidade</option>
+    </select>
+  </div>
+</div>
+
 <div class="actions">
 <button class="btn2" onclick="exportarJPG()">Exportar JPG</button>
 <button class="btn" onclick="exportarPDF()">Exportar PDF</button>
@@ -258,25 +270,26 @@ function limparTudo(){
  $('corpoEscala').innerHTML='';
 }
 
-async function canvasEscala(){
+async function canvasEscala(scalePersonalizado = 3){
  gerarEscala();
  return await html2canvas(document.querySelector('.preview-wrap'),{
-scale:3,
+scale:scalePersonalizado,
 backgroundColor:'#ffffff',
 useCORS:true
 });
 }
 
 async function exportarJPG(){
- const c=await canvasEscala();
+ const tamanho = parseInt($('tamanhoJPG').value || '2');
+ const c=await canvasEscala(tamanho);
  const a=document.createElement('a');
  a.download='escala-vigilantes.jpg';
- a.href=c.toDataURL('image/jpeg',0.98);
+ a.href=c.toDataURL('image/jpeg',0.90);
  a.click();
 }
 
 async function exportarPDF(){
- const c=await canvasEscala();
+ const c=await canvasEscala(3);
  const img=c.toDataURL('image/jpeg',0.98);
  const {jsPDF}=window.jspdf;
  const pdf=new jsPDF('l','mm','a4');
